@@ -22,6 +22,6 @@ class Score_MLP(nn.Module):
         for i, feature in enumerate(self.features):
             x = nn.Dense(feature)(x)
             # Apply nonlinearity
-            x = nn.tanh(x)
+            x = nn.softplus(x)
 
         return nn.Dense(self.dim)(x)
