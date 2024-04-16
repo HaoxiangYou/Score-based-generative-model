@@ -13,7 +13,7 @@ def score_matching_loss(score_fn, model_param, xs, ts):
         ts: timesteps when the score is evaluated
 
     Return:
-        Loss for score matching
+        loss for score matching
     """
     score_joc_fn = jax.jacobian(score_fn, argnums=1)
     def score_matching_single_loss(x, t):
@@ -44,4 +44,3 @@ def sliced_score_matching_loss(score_fn, model_param, xs, ts, random_key):
     def sliced_score_single_loss(x, t, v):
         return 1/2 * jnp.sum(score_fn(model_param, x, t)**2) + jnp.dot(sliced_score_jac_fn(x, t, v), v)
     return jnp.mean(jax.vmap(sliced_score_single_loss)(xs, ts, vs))
-    
