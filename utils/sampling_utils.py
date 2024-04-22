@@ -40,7 +40,7 @@ def forward_OU_process(x0, t, random_key):
         X_t: a realization of random variable drawn from rho_t, which is the distribution involve along OU process
     """
     z = jax.random.multivariate_normal(random_key, jnp.zeros_like(x0), jnp.diag(jnp.ones_like(x0)))
-    return jnp.exp(-t) * x0 + (1-jnp.exp(-2*t)) * z
+    return jnp.exp(-t) * x0 + (1-jnp.exp(-2*t))**0.5 * z
 
 def backward_OU_process(score_fn, xT, random_key, dt, T, t0=0):
     """
