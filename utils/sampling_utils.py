@@ -42,7 +42,7 @@ def forward_OU_process(x0, t, random_key):
     z = jax.random.multivariate_normal(random_key, jnp.zeros_like(x0), jnp.diag(jnp.ones_like(x0)))
     return jnp.exp(-t) * x0 + (1-jnp.exp(-2*t)) * z
 
-def backward_OU_process(score_fn, xT, random_key, dt, T):
+def backward_OU_process(score_fn, xT, random_key, dt, T, t0=0):
     """
     Run backward OU process to generate a sample.
 
@@ -58,12 +58,13 @@ def backward_OU_process(score_fn, xT, random_key, dt, T):
         xT: initial value, which should be sample from a standard Gaussian.
         random_key: the random key to generate noisy 
         dt: time-step
-        T: the total time to run ula    
+        T: the time xT is draw from
+        t0: the time to stop running backward OU, so we run backward OU for T-t time    
     Return:
         x0: a sample from target distribution
     """
     x = xT
-    ts = jnp.arange(T, 0-dt, -dt)
+    ts = jnp.arange(T, t0-dt, -dt)
     noises = jax.random.multivariate_normal(random_key, jnp.zeros_like(x), jnp.diag(jnp.ones_like(x)), shape=(ts.shape[0],))
     for i in range(ts.shape[0]):
         x = jnp.exp(dt) * x + 2 * (jnp.exp(dt)-1) * score_fn(x, ts[i]) + (jnp.exp(2 * dt) - 1)**0.5 * noises[i]
