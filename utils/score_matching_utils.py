@@ -90,3 +90,40 @@ def weighted_sliced_score_matching_loss(score_fn, weight_fn, model_param, xs, ts
     def sliced_score_wighted_single_loss(x, t, v):
         return (1/2 * jnp.sum(score_fn(model_param, x, t)**2) + jnp.dot(sliced_score_jac_fn(x, t, v), v)) / weight_fn(t)
     return jnp.mean(jax.vmap(sliced_score_wighted_single_loss)(xs, ts, vs))
+
+def weighted_denoising_score_matching_with_ou_process_loss(nn_model, model_param, x0s, ts, random_key):
+    """
+    The score matching objective can be also be written as
+
+        \mathbb{E} [\|s_t(X_t) + \frac{1}{\sqrt{1-exp(-2t)}} Z_t \|^2],
+
+    where Z_t \sim \mathcal{N}(0, I) and X_t = \exp{(-t)} X_0 + \sqrt{1-\exp{(-2t)} Z_t}.
+    or equivalently we can minimize
+        \mathbb{E} [\| \sqrt{1-\exp{(-2t)}} s_t(X_t) + Z_t \|^2]
+
+    The nice thing about this objective is the magnitude of loss function is almost independent of time (the rho_t).
+
+    Moreover, if we parameterized our neural network as nn(x, t) = \sqrt{1-\exp{(-2t)}} s_t(X_t), then when score is approximate well, 
+    the output of neural network have roughly magtitude of 1.
+
+    Original paper: https://www.iro.umontreal.ca/~vincentp/Publications/smdae_techreport.pdf
+    Another derivation: https://arxiv.org/pdf/2209.11215
+
+    Args:
+        nn_model: take model param, x, t and output \sqrt{1-\exp{(-2t)}} s_t(X_t)
+        model_param: model parameters
+        x0s: original images
+        ts: timesteps when the score is evaluated
+        random_key: random_key to generate gaussian noisy
+    Returns:
+        weighted_denoising_score_matching_under_ou_process_loss
+    """
+
+    num_samples, sample_dim = x0s.shape
+    zs = jax.random.multivariate_normal(random_key, jnp.zeros(sample_dim), jnp.eye(sample_dim), shape=(num_samples,))
+    xts = (jnp.exp(-ts))[:, None] * x0s + ((1-jnp.exp(-2*ts))**0.5)[:, None] * zs
+
+    def weighted_denoising_score_matching_single_loss_fn(xt, t, z):
+        return jnp.sum((nn_model(model_param, xt, t) + z)**2)
+    
+    return jnp.mean(jax.vmap(weighted_denoising_score_matching_single_loss_fn)(xts, ts, zs))
